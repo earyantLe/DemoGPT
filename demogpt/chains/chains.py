@@ -6,9 +6,11 @@ from time import sleep
 import autopep8
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI
-from langchain.prompts.chat import (ChatPromptTemplate,
-                                    HumanMessagePromptTemplate,
-                                    SystemMessagePromptTemplate)
+from langchain.prompts.chat import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
+)
 
 from demogpt import utils
 from demogpt.chains.task_definitions import getPlanGenHelper, getTasks
@@ -22,23 +24,25 @@ class Chains:
     def setLlm(
         cls,
         model,
-        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        openai_api_key=os.getenv(
+            "OPENAI_API_KEY", "sk-nTKLnTFhg2msUijut8REb8ddAyliNYrCUNHQVB68rKODczyG"
+        ),
         temperature=0.0,
         openai_api_base=None,
-        has_gpt4=False
+        has_gpt4=False,
     ):
-        cls.openai_api_key=openai_api_key
-        cls.temperature=temperature
-        cls.openai_api_base=openai_api_base
-        cls.has_gpt4=has_gpt4
+        cls.openai_api_key = openai_api_key
+        cls.temperature = temperature
+        cls.openai_api_base = openai_api_base
+        cls.has_gpt4 = has_gpt4
         cls.llm = ChatOpenAI(
             model=model,
             openai_api_key=openai_api_key,
             temperature=temperature,
-            openai_api_base=openai_api_base
+            openai_api_base=openai_api_base,
         )
         cls.model = model
-    
+
     @classmethod
     def getModel(cls, change=False, temperature=0, change_model="gpt-4-0613"):
         if change and cls.has_gpt4:
@@ -46,42 +50,59 @@ class Chains:
                 model=change_model,
                 openai_api_key=cls.openai_api_key,
                 temperature=temperature,
-                openai_api_base=cls.openai_api_base
-        )
-        
+                openai_api_base=cls.openai_api_base,
+            )
+
         if temperature > 0:
             return ChatOpenAI(
                 model=cls.model,
                 openai_api_key=cls.openai_api_key,
                 temperature=temperature,
-                openai_api_base=cls.openai_api_base
-        )
-        
+                openai_api_base=cls.openai_api_base,
+            )
+
         return cls.llm
-        
+
     @classmethod
     def setModel(cls, model):
         cls.model = model
 
     @classmethod
-    def getChain(cls, system_template="", human_template="", change=False, change_model="gpt-4-0613", temperature=0, **kwargs):
+    def getChain(
+        cls,
+        system_template="",
+        human_template="",
+        change=False,
+        change_model="gpt-4-0613",
+        temperature=0,
+        **kwargs,
+    ):
         prompts = []
         if system_template:
             prompts.append(SystemMessagePromptTemplate.from_template(system_template))
         if human_template:
             prompts.append(HumanMessagePromptTemplate.from_template(human_template))
         chat_prompt = ChatPromptTemplate.from_messages(prompts)
-        return LLMChain(llm=cls.getModel(change=change, temperature=temperature, change_model=change_model), prompt=chat_prompt).run(**kwargs)
-    
+        return LLMChain(
+            llm=cls.getModel(
+                change=change, temperature=temperature, change_model=change_model
+            ),
+            prompt=chat_prompt,
+        ).run(**kwargs)
+
     @classmethod
     def title(cls, instruction):
-        return cls.getChain(
-            system_template=prompts.title.system_template,
-            human_template=prompts.title.human_template,
-            change=False,
-            temperature=0.8,
-            instruction=instruction
-        ).replace('"','').replace("'","")
+        return (
+            cls.getChain(
+                system_template=prompts.title.system_template,
+                human_template=prompts.title.human_template,
+                change=False,
+                temperature=0.8,
+                instruction=instruction,
+            )
+            .replace('"', "")
+            .replace("'", "")
+        )
 
     @classmethod
     def appType(cls, instruction):
@@ -148,8 +169,8 @@ class Chains:
 
     @classmethod
     def tasks(cls, instruction, plan, app_type):
-        TASK_DESCRIPTIONS, TASK_NAMES= getTasks(app_type)[:2]
-        
+        TASK_DESCRIPTIONS, TASK_NAMES = getTasks(app_type)[:2]
+
         task_list = cls.getChain(
             system_template=prompts.tasks.system_template,
             human_template=prompts.tasks.human_template,
@@ -173,7 +194,7 @@ class Chains:
                 TASK_NAMES=TASK_NAMES,
             )
             tasks = json.loads(task_list)
-            
+
         return utils.reformatTasks(tasks)
 
     @classmethod
@@ -187,7 +208,7 @@ class Chains:
     @classmethod
     def refineTasks(cls, instruction, tasks, feedback, app_type):
         _, TASK_NAMES, _, TASK_PURPOSES = getTasks(app_type)[:4]
-        
+
         try:
             task_list = cls.getChain(
                 system_template=prompts.task_refiner.system_template,
@@ -196,8 +217,8 @@ class Chains:
                 tasks=tasks,
                 feedback=feedback,
                 TASK_NAMES=TASK_NAMES,
-                TASK_PURPOSES=TASK_PURPOSES
-                )
+                TASK_PURPOSES=TASK_PURPOSES,
+            )
             tasks = json.loads(task_list)
         except:
             print("Switching to 16k...")
@@ -213,7 +234,7 @@ class Chains:
                 TASK_PURPOSES=TASK_PURPOSES,
             )
             tasks = json.loads(task_list)
-            
+
         return utils.reformatTasks(tasks)
 
     @classmethod
@@ -226,27 +247,27 @@ class Chains:
             plan=plan,
         )
         return utils.refine(code)
-    
+
     @classmethod
     def howToUse(cls, plan):
         steps = cls.getChain(
             system_template=prompts.how_to_use.system_template,
             human_template=prompts.how_to_use.human_template,
-            plan=plan
+            plan=plan,
         )
-        
+
         total_code = f'st.sidebar.markdown("""{steps}""")\n'
         return total_code
-    
+
     @classmethod
     def about(cls, instruction, title):
         markdown = cls.getChain(
             system_template=prompts.about.system_template,
             human_template=prompts.about.human_template,
             instruction=instruction,
-            title=title
+            title=title,
         )
-        
+
         code = f'\nst.sidebar.markdown("# About")\nst.sidebar.markdown("{markdown}")'
         return code
 
@@ -271,9 +292,9 @@ class Chains:
         )
         code = utils.refine(code)
         code = autopep8.fix_code(code)
-        
+
         has_problem = utils.catchErrors(code)
-        
+
         if has_problem:
             print("Switching to the 16k...")
             code = cls.getChain(
@@ -282,10 +303,10 @@ class Chains:
                 change=True,
                 change_model="gpt-3.5-turbo-16k-0613",
                 code_snippets=code_snippets,
-                function_names=function_names
+                function_names=function_names,
             )
             code = utils.refine(code)
-        
+
         return code
 
     @classmethod
@@ -312,27 +333,29 @@ class Chains:
                 refined_plan.append(f"{index}. {current_step}")
                 index += 1
         return "\n".join(refined_plan)
-    
+
     @classmethod
     def addAboutAndHTU(cls, instruction, title, code_snippets, plan):
         sleep(1)
         how_to_markdown = cls.howToUse(plan=plan)
         sleep(2)
         about = cls.about(instruction=instruction, title=title)
-        pattern = r'(openai_api_key\s*=\s*st\.sidebar\.text_input\((?:[^()]*|\([^)]*\))*\))'
+        pattern = (
+            r"(openai_api_key\s*=\s*st\.sidebar\.text_input\((?:[^()]*|\([^)]*\))*\))"
+        )
         # replacement string with additional code
-        replacement = how_to_markdown + r'\1' + about
+        replacement = how_to_markdown + r"\1" + about
         # substitute using regex
         final_code = re.sub(pattern, replacement, code_snippets, flags=re.DOTALL)
         return final_code
-    
+
     @classmethod
     def getAboutAndHTU(cls, instruction, title, plan):
         sleep(1)
         how_to = cls.howToUse(plan=plan)
         sleep(2)
         about = cls.about(instruction=instruction, title=title)
-        return how_to, about 
+        return how_to, about
 
     @classmethod
     def refine(cls, instruction, code, feedback):
